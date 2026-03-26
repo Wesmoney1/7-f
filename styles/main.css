@@ -1,0 +1,22 @@
+.roboto-<uniquifier> {
+  font-family: "Roboto", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: <weight>;
+  font-style: normal;
+  font-variation-settings:
+    "wdth" 100;
+}
+
+p {
+  font-size: 16 px;
+  font-family: roboto-300, sans-serif;
+}
+
+h1 {
+  font-family: robot-600, sans-serif;
+}
+
+a {
+  color: '#5794e5';
+  font-family: roboto-300, sans-serif;
+}
