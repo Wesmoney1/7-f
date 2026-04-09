@@ -1,0 +1,162 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <title>Python IDE</title>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+          /* Base reset */
+          * { box-sizing: border-box; }
+          /* User CSS */
+          
+        </style>
+        <script>
+            // Capture console.log to display in parent (Optional future enhancement, currently just preventing errors)
+            window.onerror = function(message, source, lineno, colno, error) {
+                console.error('Preview Error:', message);
+            };
+        </script>
+      </head>
+      <body>
+        <!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="https://cdn.jsdelivr.net/npm/brython@3.12.1/brython.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/brython@3.12.1/brython_stdlib.js"></script>
+    <style>
+        :root { --bg: #1e1e1e; --panel: #252526; --text: #cccccc; --accent: #007acc; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; }
+        #sidebar { width: 180px; background: var(--panel); border-right: 1px solid #333; display: flex; flex-direction: column; padding: 10px; }
+        #editor-container { flex-grow: 1; display: flex; flex-direction: column; }
+        textarea { flex-grow: 1; background: #1e1e1e; color: #d4d4d4; border: none; padding: 15px; font-family: 'Consolas', monospace; font-size: 14px; outline: none; resize: none; }
+        #console { height: 30%; background: #000; color: #00ff00; padding: 10px; overflow-y: auto; border-top: 1px solid #333; font-family: monospace; white-space: pre-wrap; }
+        .file-item { padding: 5px 10px; cursor: pointer; border-radius: 3px; margin-bottom: 2px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+        .file-item:hover { background: #37373d; }
+        .active-file { background: #37373d; color: #fff; border-left: 2px solid var(--accent); }
+        .controls { padding: 8px; background: var(--panel); display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #333; }
+        button { background: #444; color: white; border: none; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+        button:hover { background: #555; }
+        #run-btn { background: #2ea043; font-weight: bold; }
+        #run-btn:hover { background: #3fb950; }
+    </style>
+</head>
+<body onload="brython()">
+
+    <div id="sidebar">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 10px; color: #858585;">FILES</div>
+        <div id="file-list"></div>
+        <button id="add-file-btn" style="margin-top: 10px; background: transparent; border: 1px dashed #555;">+ New File</button>
+    </div>
+
+    <div id="editor-container">
+        <div class="controls">
+            <span id="current-filename" style="flex-grow: 1; font-size: 13px;">main.py</span>
+            <button id="run-btn">Run</button>
+        </div>
+        <textarea id="editor" spellcheck="false"></textarea>
+        <div id="console"></div>
+    </div>
+
+    <script type="text/python">
+from browser import document, window, alert, prompt
+import sys
+import types
+
+# 1. Initial State: Only main.py
+virtual_files = {
+    "main.py": "print('Hello from main.py!')\n# Try adding a .txt file and reading it here."
+}
+current_file = "main.py"
+
+def write_to_console(data):
+    document["console"].text += str(data)
+
+sys.stdout.write = write_to_console
+
+def update_ui():
+    # Update File List
+    list_div = document["file-list"]
+    list_div.clear()
+    for filename in virtual_files:
+        item = document.createElement("div")
+        item.className = "file-item" + (" active-file" if filename == current_file else "")
+        item.text = filename
+        item.bind("click", lambda ev, f=filename: switch_file(f))
+        list_div <= item
+    # Update Header
+    document["current-filename"].text = current_file
+
+def switch_file(filename):
+    global current_file
+    virtual_files[current_file] = document["editor"].value
+    current_file = filename
+    document["editor"].value = virtual_files[filename]
+    update_ui()
+
+def add_file_handler(ev):
+    name = prompt("Enter filename (e.g., config.json or utils.py):")
+    if name:
+        if name in virtual_files:
+            alert("File already exists!")
+        else:
+            virtual_files[name] = ""
+            switch_file(name)
+
+def run_project(ev):
+    document["console"].clear()
+    virtual_files[current_file] = document["editor"].value
+    
+    # Setup VFS (Virtual File System)
+    def vfs_open(file, mode='r'):
+        if file in virtual_files:
+            from io import StringIO
+            return StringIO(virtual_files[file])
+        raise FileNotFoundError(f"No such file: {file}")
+
+    # Prepare modules for imports
+    for name, content in virtual_files.items():
+        if name.endswith(".py") and name != "main.py":
+            mod_name = name.rsplit('.', 1)[0]
+            module = types.ModuleType(mod_name)
+            module.open = vfs_open
+            try:
+                exec(content, module.__dict__)
+                sys.modules[mod_name] = module
+            except Exception as e:
+                print(f"Error in {name}: {e}")
+
+    # Execute main.py
+    import builtins
+    old_open = builtins.open
+    builtins.open = vfs_open 
+    try:
+        # Pass vfs_open directly into the execution context
+        exec(virtual_files["main.py"], {"open": vfs_open, "print": print, "__name__": "__main__"})
+    except Exception as e:
+        print(f"\nError:\n{e}")
+    finally:
+        builtins.open = old_open
+
+# Bind events
+document["add-file-btn"].bind("click", add_file_handler)
+document["run-btn"].bind("click", run_project)
+
+# Initialize
+document["editor"].value = virtual_files[current_file]
+update_ui()
+    </script>
+</body>
+</html>
+        <script>
+          try {
+            
+          } catch (err) {
+            console.error('Runtime Error:', err);
+            document.body.innerHTML += '<div style="color:red; background:#ffe6e6; padding:10px; margin-top:20px; border-radius:4px; border:1px solid red;"><strong>Runtime Error:</strong> ' + err.message + '</div>';
+          }
+        </script>
+      </body>
+    </html>
+  
