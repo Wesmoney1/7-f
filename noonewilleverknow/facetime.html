@@ -5,157 +5,137 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
   <style>
-    body {
-      display: flex;
-      height: 100vh;
-      margin: 0;
-      align-items: center;
-      justify-content: center;
-      padding: 0 50px;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    video {
-      max-width: calc(50% - 100px);
-      margin: 0 50px;
-      box-sizing: border-box;
-      border-radius: 2px;
-      padding: 0;
-      box-shadow: rgba(156, 172, 172, 0.2) 0px 2px 2px, rgba(156, 172, 172, 0.2) 0px 4px 4px, rgba(156, 172, 172, 0.2) 0px 8px 8px, rgba(156, 172, 172, 0.2) 0px 16px 16px, rgba(156, 172, 172, 0.2) 0px 32px 32px, rgba(156, 172, 172, 0.2) 0px 64px 64px;
-    }
-    .copy {
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 16px;
-      color: rgba(0, 0, 0, 0.5);
-    }
+    body { display: flex; flex-direction: column; align-items: center; font-family: sans-serif; background: #f0f2f5; }
+    #videoContainer { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 50px; width: 100%; box-sizing: border-box; }
+    video { width: 300px; background: #000; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .copy { padding: 20px; background: white; width: 100%; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
   </style>
 </head>
 <body>
-  <div class="copy">Send your URL to a friend to start a video call</div>
-  <video id="localVideo" autoplay muted></video>
-  <video id="remoteVideo" autoplay></video>
+  <div class="copy">
+    <span id="roomDisplay">Room: ...</span>
+    <button onclick="copyCode()">Copy Code</button>
+    <input type="text" id="joinInput" placeholder="Paste Room Code">
+    <button onclick="joinRoom()">Join</button>
+  </div>
+
+  <div id="videoContainer">
+    <video id="localVideo" autoplay muted></video>
+  </div>
+
   <script>
-  // Generate random room name if needed
-  if (!location.hash) {
-    location.hash = Math.floor(Math.random() * 0xFFFFFF).toString(16);
-  }
+  if (!location.hash) location.hash = Math.floor(Math.random() * 0xFFFFFF).toString(16);
   const roomHash = location.hash.substring(1);
-
-  // TODO: Replace with your own channel ID
-  const drone = new ScaleDrone('vTWPOER70X1GvIHG');
-  // Room name needs to be prefixed with 'observable-'
   const roomName = 'observable-' + roomHash;
-  const configuration = {
-    iceServers: [{
-      urls: 'stun:stun.l.google.com:19302'
-    }]
-  };
-  let room;
-  let pc;
+  const drone = new ScaleDrone('vTWPOER70X1GvIHG');
 
+  const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+  const peers = {};
+  let localStream;
 
-  function onSuccess() {};
-  function onError(error) {
-    console.error(error);
-  };
+  // 1. GET USER MEDIA ONCE
+  navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+    .then(stream => {
+      localStream = stream;
+      document.getElementById('localVideo').srcObject = stream;
+      // Now that we have the stream, connect to the drone
+      initDrone();
+    }).catch(e => console.error("Camera access denied", e));
 
-  drone.on('open', error => {
-    if (error) {
-      return console.error(error);
-    }
-    room = drone.subscribe(roomName);
-    room.on('open', error => {
-      if (error) {
-        onError(error);
-      }
-    });
-    // We're connected to the room and received an array of 'members'
-    // connected to the room (including us). Signaling server is ready.
-    room.on('members', members => {
-      console.log('MEMBERS', members);
-      // If we are the second user to connect to the room we will be creating the offer
-      const isOfferer = members.length === 2;
-      startWebRTC(isOfferer);
-    });
-  });
+  function initDrone() {
+    drone.on('open', error => {
+      if (error) return console.error(error);
+      const room = drone.subscribe(roomName);
 
-  // Send signaling data via Scaledrone
-  function sendMessage(message) {
-    drone.publish({
-      room: roomName,
-      message
+      room.on('members', members => {
+        members.forEach(member => {
+          if (member.id !== drone.clientId) setupPeer(member, true);
+        });
+      });
+
+      room.on('member_join', member => {
+        // We don't initiate here; we wait for the offer if they are new,
+        // or setupPeer(member, false) to be ready for their signals.
+        setupPeer(member, false);
+      });
+
+      room.on('member_leave', member => {
+        if (peers[member.id]) {
+          peers[member.id].pc.close();
+          document.getElementById(`video-${member.id}`)?.remove();
+          delete peers[member.id];
+        }
+      });
+
+      room.on('data', (message, member) => {
+        if (member.id === drone.clientId) return;
+        const peer = peers[member.id];
+        if (!peer) return;
+
+        if (message.sdp) {
+          peer.pc.setRemoteDescription(new RTCSessionDescription(message.sdp)).then(() => {
+            if (peer.pc.remoteDescription.type === 'offer') {
+              peer.pc.createAnswer().then(desc => localDescCreated(desc, member.id));
+            }
+          });
+        } else if (message.candidate) {
+          peer.pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+        }
+      });
     });
   }
 
-  function startWebRTC(isOfferer) {
-    pc = new RTCPeerConnection(configuration);
+  function setupPeer(member, isOfferer) {
+    if (peers[member.id]) return;
 
-    // 'onicecandidate' notifies us whenever an ICE agent needs to deliver a
-    // message to the other peer through the signaling server
+    const pc = new RTCPeerConnection(configuration);
+    peers[member.id] = { pc };
+
+    // Add existing local tracks to this connection
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
     pc.onicecandidate = event => {
-      if (event.candidate) {
-        sendMessage({'candidate': event.candidate});
-      }
+      if (event.candidate) sendMessage({ candidate: event.candidate });
     };
 
-    // If user is offerer let the 'negotiationneeded' event create the offer
+    pc.ontrack = event => {
+      let remoteVid = document.getElementById(`video-${member.id}`);
+      if (!remoteVid) {
+        remoteVid = document.createElement('video');
+        remoteVid.id = `video-${member.id}`;
+        remoteVid.autoplay = true;
+        document.getElementById('videoContainer').appendChild(remoteVid);
+      }
+      remoteVid.srcObject = event.streams[0];
+    };
+
     if (isOfferer) {
       pc.onnegotiationneeded = () => {
-        pc.createOffer().then(localDescCreated).catch(onError);
-      }
+        pc.createOffer().then(desc => localDescCreated(desc, member.id));
+      };
     }
+  }
 
-    // When a remote stream arrives display it in the #remoteVideo element
-    pc.ontrack = event => {
-      const stream = event.streams[0];
-      if (!remoteVideo.srcObject || remoteVideo.srcObject.id !== stream.id) {
-        remoteVideo.srcObject = stream;
-      }
-    };
-
-    navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    }).then(stream => {
-      // Display your local video in #localVideo element
-      localVideo.srcObject = stream;
-      // Add your stream to be sent to the conneting peer
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
-    }, onError);
-
-    // Listen to signaling data from Scaledrone
-    room.on('data', (message, client) => {
-      // Message was sent by us
-      if (client.id === drone.clientId) {
-        return;
-      }
-
-      if (message.sdp) {
-        // This is called after receiving an offer or answer from another peer
-        pc.setRemoteDescription(new RTCSessionDescription(message.sdp), () => {
-          // When receiving an offer lets answer it
-          if (pc.remoteDescription.type === 'offer') {
-            pc.createAnswer().then(localDescCreated).catch(onError);
-          }
-        }, onError);
-      } else if (message.candidate) {
-        // Add the new ICE candidate to our connections remote description
-        pc.addIceCandidate(
-          new RTCIceCandidate(message.candidate), onSuccess, onError
-        );
-      }
+  function localDescCreated(desc, memberId) {
+    peers[memberId].pc.setLocalDescription(desc).then(() => {
+      sendMessage({ sdp: peers[memberId].pc.localDescription });
     });
   }
 
-  function localDescCreated(desc) {
-    pc.setLocalDescription(
-      desc,
-      () => sendMessage({'sdp': pc.localDescription}),
-      onError
-    );
+  function sendMessage(message) {
+    drone.publish({ room: roomName, message });
   }
+
+  // UI Helpers
+  function copyCode() {
+    navigator.clipboard.writeText(roomHash);
+    alert("Copied!");
+  }
+  function joinRoom() {
+    const code = document.getElementById('joinInput').value.trim();
+    if (code) { location.hash = code; location.reload(); }
+  }
+  document.getElementById('roomDisplay').innerText = "Room: " + roomHash;
   </script>
 </body>
 </html>
