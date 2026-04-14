@@ -5,136 +5,142 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
   <style>
-    body { display: flex; flex-direction: column; align-items: center; font-family: sans-serif; background: #f0f2f5; }
-    #videoContainer { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 50px; width: 100%; box-sizing: border-box; }
-    video { width: 300px; background: #000; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .copy { padding: 20px; background: white; width: 100%; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  body {
+    display: flex;
+    height: 100vh;
+    margin: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 0 50px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  video {
+    max-width: calc(50% - 100px);
+    margin: 0 50px;
+    box-sizing: border-box;
+    border-radius: 2px;
+    padding: 0;
+    box-shadow: rgba(156, 172, 172, 0.2) 0px 2px 2px, rgba(156, 172, 172, 0.2) 0px 4px 4px, rgba(156, 172, 172, 0.2) 0px 8px 8px, rgba(156, 172, 172, 0.2) 0px 16px 16px, rgba(156, 172, 172, 0.2) 0px 32px 32px, rgba(156, 172, 172, 0.2) 0px 64px 64px;
+  }
+  .copy {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 16px;
+    color: rgba(0, 0, 0, 0.5);
+  }
   </style>
 </head>
 <body>
   <div class="copy">
     <span id="roomDisplay">Room: ...</span>
     <button onclick="copyCode()">Copy Code</button>
+    <div style="border-left: 1px solid #ddd; height: 20px; margin: 0 5px;"></div>
     <input type="text" id="joinInput" placeholder="Paste Room Code">
     <button onclick="joinRoom()">Join</button>
   </div>
 
-  <div id="videoContainer">
-    <video id="localVideo" autoplay muted></video>
-  </div>
+  <video id="localVideo" autoplay muted></video>
+  <video id="remoteVideo" autoplay></video>
 
   <script>
-  if (!location.hash) location.hash = Math.floor(Math.random() * 0xFFFFFF).toString(16);
+  // 1. SETUP ROOM IDENTIFIER
+  if (!location.hash) {
+    location.hash = Math.floor(Math.random() * 0xFFFFFF).toString(16);
+  }
   const roomHash = location.hash.substring(1);
   const roomName = 'observable-' + roomHash;
+
+  // 2. INITIALIZE SCALEDRONE
   const drone = new ScaleDrone('vTWPOER70X1GvIHG');
+  const configuration = {
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  };
+  let room;
+  let pc;
 
-  const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-  const peers = {};
-  let localStream;
-
-  // 1. GET USER MEDIA ONCE
-  navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-    .then(stream => {
-      localStream = stream;
-      document.getElementById('localVideo').srcObject = stream;
-      // Now that we have the stream, connect to the drone
-      initDrone();
-    }).catch(e => console.error("Camera access denied", e));
-
-  function initDrone() {
-    drone.on('open', error => {
-      if (error) return console.error(error);
-      const room = drone.subscribe(roomName);
-
-      room.on('members', members => {
-        members.forEach(member => {
-          if (member.id !== drone.clientId) setupPeer(member, true);
-        });
-      });
-
-      room.on('member_join', member => {
-        // We don't initiate here; we wait for the offer if they are new,
-        // or setupPeer(member, false) to be ready for their signals.
-        setupPeer(member, false);
-      });
-
-      room.on('member_leave', member => {
-        if (peers[member.id]) {
-          peers[member.id].pc.close();
-          document.getElementById(`video-${member.id}`)?.remove();
-          delete peers[member.id];
-        }
-      });
-
-      room.on('data', (message, member) => {
-        if (member.id === drone.clientId) return;
-        const peer = peers[member.id];
-        if (!peer) return;
-
-        if (message.sdp) {
-          peer.pc.setRemoteDescription(new RTCSessionDescription(message.sdp)).then(() => {
-            if (peer.pc.remoteDescription.type === 'offer') {
-              peer.pc.createAnswer().then(desc => localDescCreated(desc, member.id));
-            }
-          });
-        } else if (message.candidate) {
-          peer.pc.addIceCandidate(new RTCIceCandidate(message.candidate));
-        }
-      });
+  // 3. UI FUNCTIONS
+  function copyCode() {
+    navigator.clipboard.writeText(roomHash).then(() => {
+      alert("Room code " + roomHash + " copied!");
     });
   }
 
-  function setupPeer(member, isOfferer) {
-    if (peers[member.id]) return;
-
-    const pc = new RTCPeerConnection(configuration);
-    peers[member.id] = { pc };
-
-    // Add existing local tracks to this connection
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    pc.onicecandidate = event => {
-      if (event.candidate) sendMessage({ candidate: event.candidate });
-    };
-
-    pc.ontrack = event => {
-      let remoteVid = document.getElementById(`video-${member.id}`);
-      if (!remoteVid) {
-        remoteVid = document.createElement('video');
-        remoteVid.id = `video-${member.id}`;
-        remoteVid.autoplay = true;
-        document.getElementById('videoContainer').appendChild(remoteVid);
-      }
-      remoteVid.srcObject = event.streams[0];
-    };
-
-    if (isOfferer) {
-      pc.onnegotiationneeded = () => {
-        pc.createOffer().then(desc => localDescCreated(desc, member.id));
-      };
+  function joinRoom() {
+    const code = document.getElementById('joinInput').value.trim();
+    if (code) {
+      location.hash = code;
+      location.reload(); // Reloads the file with the new hash
     }
   }
 
-  function localDescCreated(desc, memberId) {
-    peers[memberId].pc.setLocalDescription(desc).then(() => {
-      sendMessage({ sdp: peers[memberId].pc.localDescription });
+  // 4. WEBRTC LOGIC
+  function onSuccess() {};
+  function onError(error) { console.error(error); };
+
+  drone.on('open', error => {
+    if (error) return console.error(error);
+    room = drone.subscribe(roomName);
+
+    room.on('members', members => {
+      const isOfferer = members.length === 2;
+      startWebRTC(isOfferer);
     });
-  }
+  });
 
   function sendMessage(message) {
     drone.publish({ room: roomName, message });
   }
 
-  // UI Helpers
-  function copyCode() {
-    navigator.clipboard.writeText(roomHash);
-    alert("Copied!");
+  function startWebRTC(isOfferer) {
+    pc = new RTCPeerConnection(configuration);
+
+    pc.onicecandidate = event => {
+      if (event.candidate) sendMessage({'candidate': event.candidate});
+    };
+
+    if (isOfferer) {
+      pc.onnegotiationneeded = () => {
+        pc.createOffer().then(localDescCreated).catch(onError);
+      }
+    }
+
+    pc.ontrack = event => {
+      const stream = event.streams[0];
+      if (!remoteVideo.srcObject || remoteVideo.srcObject.id !== stream.id) {
+        remoteVideo.srcObject = stream;
+      }
+    };
+
+    navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    }).then(stream => {
+      localVideo.srcObject = stream;
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    }, onError);
+
+    room.on('data', (message, client) => {
+      if (client.id === drone.clientId) return;
+
+      if (message.sdp) {
+        pc.setRemoteDescription(new RTCSessionDescription(message.sdp), () => {
+          if (pc.remoteDescription.type === 'offer') {
+            pc.createAnswer().then(localDescCreated).catch(onError);
+          }
+        }, onError);
+      } else if (message.candidate) {
+        pc.addIceCandidate(new RTCIceCandidate(message.candidate), onSuccess, onError);
+      }
+    });
   }
-  function joinRoom() {
-    const code = document.getElementById('joinInput').value.trim();
-    if (code) { location.hash = code; location.reload(); }
+
+  function localDescCreated(desc) {
+    pc.setLocalDescription(desc, () => sendMessage({'sdp': pc.localDescription}), onError);
   }
+
+  // 5. UPDATE UI (Placed at end so elements exist)
   document.getElementById('roomDisplay').innerText = "Room: " + roomHash;
   </script>
 </body>
