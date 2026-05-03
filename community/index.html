@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Gallery</title>
+    <link rel="stylesheet" href="../styles/main.css">
+    <style>
+        body { padding: 20px; max-width: 800px; margin: auto; }
+        .project-list { list-style: none; padding: 0; }
+        .project-item { 
+            margin-bottom: 15px; 
+            padding: 15px; 
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+        .project-link { font-size: 1.2rem; display: block; margin-bottom: 5px; }
+        .author-tag { font-size: 0.9rem; color: #666; }
+        .loading { font-style: italic; color: #5794e5; }
+    </style>
+</head>
+<body>
+
+    <h1 class="robot-600">Community Gallery</h1>
+    <p class="roboto-300">New projects appear here once approved.</p>
+    <a href="./submit/" class="roboto-300" style="color: #5794e5;">Submit your own code &rarr;</a>
+
+    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+    <ul id="projectList" class="project-list">
+        <li class="loading roboto-300">Scanning community submissions...</li>
+    </ul>
+
+    <script>
+        async function loadProjects() {
+            const repo = "Wesmoney1/7-f";
+            const folderPath = "community/submissions";
+            const listElement = document.getElementById('projectList');
+
+            try {
+                const response = await fetch(`https://api.github.com/repos/${repo}/contents/${folderPath}`);
+                const files = await response.json();
+
+                if (!Array.isArray(files) || files.length === 0) {
+                    listElement.innerHTML = "<li class='roboto-300'>No projects have been approved yet.</li>";
+                    return;
+                }
+
+                listElement.innerHTML = "";
+
+                const parser = new DOMParser();
+
+                for (const file of files) {
+                    if (file.name.endsWith('.html')) {
+                        try {
+                            // Fetch the actual content of the file
+                            const fileRes = await fetch(file.download_url);
+                            const htmlText = await fileRes.text();
+                            
+                            // Parse the HTML to find the <title>
+                            const doc = parser.parseFromString(htmlText, "text/html");
+                            const pageTitle = doc.title || "Untitled Project";
+                            
+                            // Extract author name from filename (assuming username-timestamp.html format)
+                            const author = file.name.split('-')[0];
+
+                            const li = document.createElement('li');
+                            li.className = "project-item";
+                            li.innerHTML = `
+                                <a href="./submissions/${file.name}" class="project-link robot-600" style="color: #5794e5;">
+                                    ${pageTitle}
+                                </a>
+                                <span class="author-tag roboto-300">Submitted by: ${author}</span>
+                            `;
+                            listElement.appendChild(li);
+                        } catch (e) {
+                            console.error("Could not parse file:", file.name);
+                        }
+                    }
+                }
+            } catch (err) {
+                listElement.innerHTML = "<li class='roboto-300'>Error connecting to GitHub.</li>";
+                console.error(err);
+            }
+        }
+
+        loadProjects();
+    </script>
+</body>
+</html>
