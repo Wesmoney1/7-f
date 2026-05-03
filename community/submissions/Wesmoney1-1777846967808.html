@@ -1,0 +1,1119 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+          /* Base reset */
+          * { box-sizing: border-box; }
+          /* User CSS */
+          
+        </style>
+        <script>
+            // Capture console.log to display in parent (Optional future enhancement, currently just preventing errors)
+            window.onerror = function(message, source, lineno, colno, error) {
+                console.error('Preview Error:', message);
+            };
+        </script>
+      </head>
+      <body>
+        <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AntiOS v1.2</title>
+    <style>
+        :root {
+            /* Classic VGA TTY colors */
+            --bg-color: #000000;
+            --fg-color: #aaaaaa; /* Dimmer, classic terminal gray */
+            --font-family: 'Consolas', 'Courier New', Courier, monospace;
+            --font-size: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Custom Blocky Scrollbar */
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: #333; border: 1px solid #000; }
+        
+        /* Terminal text selection */
+        ::selection { background: var(--fg-color); color: var(--bg-color); }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--fg-color);
+            font-family: var(--font-family);
+            font-size: var(--font-size);
+            line-height: 1.1; /* Tighter line spacing */
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Terminal Layer */
+        #terminal-layer {
+            height: 100%;
+            width: 100%;
+            padding: 4px 8px; /* Tighter padding to edges */
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #input-line {
+            display: flex;
+            white-space: pre;
+            margin-top: 0px;
+        }
+
+        /* Prompt - removed the neon green for a unified barebones look */
+        .prompt {
+            color: var(--fg-color);
+            font-weight: bold;
+        }
+
+        .cursor {
+            background-color: var(--fg-color);
+            color: var(--bg-color);
+            animation: blink 1s step-end infinite;
+            display: inline-block;
+            min-width: 9px;
+            height: var(--font-size);
+            vertical-align: bottom;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Editor Layer */
+        #editor-layer {
+            height: 100%;
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            background-color: var(--bg-color);
+        }
+
+        /* Classic inverted TTY header/footer */
+        #editor-header, #editor-footer {
+            background-color: var(--fg-color);
+            color: var(--bg-color);
+            padding: 2px 8px;
+            text-align: left;
+            font-weight: normal;
+        }
+
+        #editor-textarea {
+            flex: 1;
+            background-color: transparent;
+            color: var(--fg-color);
+            font-family: var(--font-family);
+            font-size: var(--font-size);
+            border: none;
+            outline: none;
+            padding: 8px;
+            resize: none;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+        }
+
+        #editor-footer {
+            display: flex;
+            justify-content: flex-start;
+            gap: 20px;
+        }
+
+        .shortcut {
+            font-weight: bold;
+            color: var(--bg-color);
+            text-decoration: underline;
+        }
+
+        #view-layer, #embed-layer {
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Terminal Interface -->
+    <div id="terminal-layer">
+        <div id="output"></div>
+        <div id="input-line">
+            <span id="prompt-text" class="prompt"></span>
+            <span id="input-left"></span>
+            <span id="cursor" class="cursor"> </span>
+            <span id="input-right"></span>
+        </div>
+    </div>
+
+    <!-- Text Editor Interface -->
+    <div id="editor-layer">
+        <div id="editor-header">nano-lite - <span id="editor-filename"></span></div>
+        <textarea id="editor-textarea" spellcheck="false"></textarea>
+        <div id="editor-footer">
+            <span><span class="shortcut">^S</span> Save</span>
+            <span id="editor-status"></span>
+            <span><span class="shortcut">^Q</span> Quit</span>
+        </div>
+    </div>
+
+    <div id="view-layer" style="display: none; height: 100%; width: 100%; flex-direction: column; background-color: #fff;">
+        <div id="view-header" style="background-color: #aaaaaa; color: #000; padding: 2px 8px; display: flex; justify-content: space-between;">
+            <span>Browser - <span id="view-filename"></span></span>
+            <span>Press <b style="text-decoration: underline;">ESC</b> to Exit</span>
+        </div>
+        <iframe id="view-iframe" style="flex: 1; border: none; width: 100%; background: white;"></iframe>
+    </div>
+
+    <div id="embed-layer" style="display: none; height: 100%; width: 100%; flex-direction: column; background-color: #fff;">
+        <div id="embed-header" style="background-color: #444; color: #fff; padding: 4px 8px; display: flex; justify-content: space-between; font-size: 14px;">
+            <span>Live Embed: <span id="embed-url-text"></span></span>
+            <span>Press <b>ESC</b> to Close</span>
+        </div>
+        <embed id="embed-frame" type="text/html" src="" style="flex: 1; width: 100%; border: none; background: white;"></embed>
+    </div>
+
+    <script>
+        /** * 1. Virtual File System (VFS) using IndexedDB
+         */
+        const DB_NAME = 'WebOS_VFS';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'vfs';
+
+        const dbPromise = new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: 'path' });
+                }
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+
+        async function idbOp(type, callback) {
+            const db = await dbPromise;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, type);
+                const store = tx.objectStore(STORE_NAME);
+                const req = callback(store);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        const vfs = {
+            async read(path) { return idbOp('readonly', store => store.get(path)); },
+            async write(path, content, type = 'file') { return idbOp('readwrite', store => store.put({ path, type, content })); },
+            async rm(path) { return idbOp('readwrite', store => store.delete(path)); },
+            async readdir(path) {
+                const prefix = path === '/' ? '/' : path + '/';
+                const allFiles = await idbOp('readonly', store => store.getAll());
+                return allFiles.filter(f => {
+                    if (path === '/' && f.path === '/') return false;
+                    if (!f.path.startsWith(prefix)) return false;
+                    const remainder = f.path.substring(prefix.length);
+                    return remainder.length > 0 && !remainder.includes('/');
+                });
+            },
+            async exists(path) {
+                const file = await this.read(path);
+                return !!file;
+            }
+        };
+
+        function resolvePath(cwd, p) {
+            if (Array.isArray(p)) p = p;
+            if (!p) return cwd;
+            let base = String(p).startsWith('/') ? '' : cwd;
+            let parts = (base + '/' + p).split('/').filter(x => x !== '' && x !== '.');
+            let res = [];
+            for (let part of parts) {
+                if (part === '..') res.pop();
+                else res.push(part);
+            }
+            return '/' + res.join('/');
+        }
+
+
+        /**
+         * 2. OS State, Security & User Management
+         */
+        const os = {
+            env: { cwd: '/', user: null, role: null },
+            mode: 'terminal', // terminal, editor, setup_user, setup_pass, login_user, login_pass, su_pass, newuser_pass
+            temp: {}, // Stores temporary inputs like pending usernames
+            commands: {}
+        };
+
+        const registerCommand = (name, fn) => { os.commands[name] = fn; };
+
+        const userManager = {
+            async getUsers() {
+                const f = await vfs.read('/etc/users.json');
+                return f ? JSON.parse(f.content) : null;
+            },
+            async saveUsers(users) {
+                if (!(await vfs.exists('/etc'))) await vfs.write('/etc', null, 'dir');
+                await vfs.write('/etc/users.json', JSON.stringify(users), 'file');
+            }
+        };
+
+        // Basic permissions: Protect /etc from non-admins
+        const checkPerms = (target) => {
+            if (target.startsWith('/etc') && os.env.role !== 'admin') {
+                term.println("Permission denied: administrator rights required.");
+                return false;
+            }
+            return true;
+        };
+
+
+        /**
+         * 3. Terminal Engine
+         */
+        const term = {
+            outputEl: document.getElementById('output'),
+            inputLeftEl: document.getElementById('input-left'),
+            inputRightEl: document.getElementById('input-right'),
+            cursorEl: document.getElementById('cursor'),
+            promptEl: document.getElementById('prompt-text'),
+            layerEl: document.getElementById('terminal-layer'),
+            
+            buffer: '',
+            cursorPos: 0,
+            history: [],
+            historyIdx: -1,
+
+            println(text) {
+                this.outputEl.textContent += text + '\n';
+                this.scrollToBottom();
+            },
+            clear() {
+                this.outputEl.textContent = '';
+            },
+            scrollToBottom() {
+                this.layerEl.scrollTop = this.layerEl.scrollHeight;
+            },
+            updateInputDisplay() {
+                let prompt = '';
+                let isPassword = false;
+
+                // Handle Login & Setup Prompts
+                if (os.mode === 'setup_user') prompt = 'Create admin username: ';
+                else if (os.mode === 'setup_pass') { prompt = `Create password for ${os.temp.setupUser}: `; isPassword = true; }
+                else if (os.mode === 'login_user') prompt = 'login: ';
+                else if (os.mode === 'login_pass') { prompt = 'password: '; isPassword = true; }
+                else if (os.mode === 'su_pass') { prompt = `Password for ${os.temp.suUser}: `; isPassword = true; }
+                else if (os.mode === 'newuser_pass') { prompt = `Create password for ${os.temp.newUser}: `; isPassword = true; }
+                else {
+                    // Standard Terminal Prompt
+                    let displayPath = os.env.cwd;
+                    if (displayPath.startsWith(`/home/${os.env.user}`)) {
+                        displayPath = '~' + displayPath.substring(`/home/${os.env.user}`.length);
+                    }
+                    prompt = `${os.env.user}@antios:${displayPath}$ `;
+                }
+
+                this.promptEl.textContent = prompt;
+
+                // Mask characters if in password mode
+                const displayBuffer = isPassword ? '*'.repeat(this.buffer.length) : this.buffer;
+                
+                const left = displayBuffer.substring(0, this.cursorPos);
+                const charAtCursor = displayBuffer.substring(this.cursorPos, this.cursorPos + 1) || ' ';
+                const right = displayBuffer.substring(this.cursorPos + 1);
+
+                this.inputLeftEl.textContent = left;
+                this.cursorEl.textContent = charAtCursor;
+                this.inputRightEl.textContent = right;
+            },
+            async execute(cmdLine) {
+                this.println(this.promptEl.textContent + cmdLine);
+                if (!cmdLine.trim()) return;
+
+                this.history.push(cmdLine);
+                this.historyIdx = this.history.length;
+
+                const args = cmdLine.match(/(?:[^\s"']+|['"][^'"]*["'])+/g) || [];
+                const cmd = args.shift().replace(/['"]/g, '');
+
+                if (os.commands[cmd]) {
+                    try {
+                        const cleanArgs = args.map(a => a.replace(/^['"](.*)['"]$/, '$1'));
+                        await os.commands[cmd](cleanArgs);
+                    } catch (err) {
+                        this.println(`Error executing ${cmd}: ${err.message}`);
+                    }
+                } else {
+                    this.println(`antios: command not found: ${cmd}`);
+                }
+                this.updateInputDisplay();
+            }
+        };
+
+
+        /**
+         * 4. Editor Engine
+         */
+        const editor = {
+            layerEl: document.getElementById('editor-layer'),
+            textarea: document.getElementById('editor-textarea'),
+            filenameEl: document.getElementById('editor-filename'),
+            statusEl: document.getElementById('editor-status'),
+            termLayer: document.getElementById('terminal-layer'),
+            currentPath: null,
+
+            async open(path) {
+                if (!checkPerms(path)) return;
+                this.currentPath = path;
+                this.filenameEl.textContent = path;
+                this.statusEl.textContent = '';
+                
+                let content = '';
+                const file = await vfs.read(path);
+                if (file && file.type === 'dir') return term.println(`edit: ${path} is a directory`);
+                if (file) content = file.content;
+
+                this.textarea.value = content;
+                os.mode = 'editor';
+                this.termLayer.style.display = 'none';
+                this.layerEl.style.display = 'flex';
+                this.textarea.focus();
+            },
+            async save() {
+                if (!checkPerms(this.currentPath)) return this.statusEl.textContent = 'Access Denied.';
+                await vfs.write(this.currentPath, this.textarea.value, 'file');
+                this.statusEl.textContent = 'Saved.';
+                setTimeout(() => this.statusEl.textContent = '', 2000);
+            },
+            close() {
+                os.mode = 'terminal';
+                this.layerEl.style.display = 'none';
+                this.termLayer.style.display = 'flex';
+                term.updateInputDisplay();
+                term.scrollToBottom();
+            }
+        };
+
+
+        /**
+         * 5. Built-in Commands
+         */
+        registerCommand('help', async () => {
+            term.println('Available commands:');
+            term.println('  help     - Show this message');
+            term.println('  clear    - Clear terminal screen');
+            term.println('  ls       - List directory contents');
+            term.println('  cd       - Change directory');
+            term.println('  pwd      - Print working directory');
+            term.println('  mkdir    - Create a directory');
+            term.println('  touch    - Create an empty file');
+            term.println('  rm       - Remove a file or directory');
+            term.println('  cat      - Print file contents');
+            term.println('  echo     - Print arguments');
+            term.println('  edit     - Open text editor');
+            term.println('  load     - Execute & save a JS module (admin only)');
+            term.println('  unload   - Remove a loaded module (admin only)');
+            term.println('  user     - Switch user (login)');
+            term.println('  newuser  - Create a new user (admin only)');
+            term.println('  logout   - Log out of current session');
+            term.println('  wipeall  - Factory reset (admin only)');
+            term.println('  curl     - Download a file from the internet');
+            term.println('  weather  - Find the weather of any city');
+            term.println('  whois-ip - Get information about any ipv6 adress');
+            term.println('  view     - View an html file');
+            term.println('  embed    - View a website');
+            term.println('  proxy    - View a website using a proxy')
+        });
+
+        registerCommand('clear', async () => term.clear());
+        registerCommand('pwd', async () => term.println(os.env.cwd));
+        registerCommand('echo', async (args) => term.println(args.join(' ')));
+
+        registerCommand('ls', async (args) => {
+            const target = resolvePath(os.env.cwd, args);
+            const files = await vfs.readdir(target);
+            if (files.length === 0) return;
+            files.sort((a,b) => a.type === 'dir' ? -1 : 1);
+            const output = files.map(f => {
+                const name = f.path.split('/').pop();
+                return f.type === 'dir' ? `<${name}>/` : name;
+            }).join('  ');
+            term.println(output);
+        });
+
+        registerCommand('cd', async (args) => {
+            const targetPath = Array.isArray(args) && args.length > 0 ? args : `/home/${os.env.user}`;
+            const target = resolvePath(os.env.cwd, targetPath);
+            if (target === '/') { os.env.cwd = target; return; }
+            const dir = await vfs.read(target);
+            if (!dir) term.println(`cd: ${targetPath}: No such file or directory`);
+            else if (dir.type !== 'dir') term.println(`cd: ${targetPath}: Not a directory`);
+            else os.env.cwd = target;
+        });
+
+        registerCommand('mkdir', async (args) => {
+            if (!args || args.length === 0) return term.println("mkdir: missing operand");
+            const target = resolvePath(os.env.cwd, args);
+            if (!checkPerms(target)) return;
+            await vfs.write(target, null, 'dir');
+        });
+
+        registerCommand('touch', async (args) => {
+            if (!args || args.length === 0) return term.println("touch: missing operand");
+            const target = resolvePath(os.env.cwd, args);
+            if (!checkPerms(target)) return;
+            const exists = await vfs.exists(target);
+            if (!exists) await vfs.write(target, '', 'file');
+        });
+
+        registerCommand('rm', async (args) => {
+            if (!args || args.length === 0) return term.println("rm: missing operand");
+            const target = resolvePath(os.env.cwd, args);
+            if (!checkPerms(target)) return;
+            await vfs.rm(target);
+        });
+
+        registerCommand('cat', async (args) => {
+            if (!args || args.length === 0) return term.println("cat: missing operand");
+            const target = resolvePath(os.env.cwd, args);
+            const file = await vfs.read(target);
+            if (!file) term.println(`cat: ${args}: No such file`);
+            else if (file.type === 'dir') term.println(`cat: ${args}: Is a directory`);
+            else term.println(file.content);
+        });
+
+        registerCommand('edit', async (args) => {
+            if (!args || args.length === 0) return term.println("edit: missing operand");
+            const target = resolvePath(os.env.cwd, args);
+            await editor.open(target);
+        });
+
+        registerCommand('load', async (args) => {
+            if (os.env.role !== 'admin') return term.println("load: permission denied (admin only)");
+            const target = resolvePath(os.env.cwd, args);
+            const file = await vfs.read(target);
+            if (!file || file.type !== 'file') return term.println(`load: file not found`);
+            
+            try {
+                const registeredCommands = [];
+                const localRegister = (name, fn) => {
+                    registeredCommands.push(name);
+                    registerCommand(name, fn); 
+                };
+
+                const moduleCode = new Function('term', 'vfs', 'os', 'registerCommand', file.content);
+                await moduleCode(term, vfs, os, localRegister);
+                
+                let autoloadFile = await vfs.read('/etc/autoload.json');
+                let autoloadData = autoloadFile ? JSON.parse(autoloadFile.content) : {};
+                autoloadData[target] = registeredCommands;
+                await vfs.write('/etc/autoload.json', JSON.stringify(autoloadData), 'file');
+
+                term.println(`Loaded module: ${target}`);
+            } catch (err) {
+                term.println(`Module error: ${err.message}`);
+            }
+        });
+
+        registerCommand('unload', async (args) => {
+            if (os.env.role !== 'admin') return term.println("unload: permission denied");
+            const target = resolvePath(os.env.cwd, args);
+            let autoloadFile = await vfs.read('/etc/autoload.json');
+            if (!autoloadFile) return term.println(`unload: no modules loaded`);
+            
+            let autoloadData = JSON.parse(autoloadFile.content);
+            if (autoloadData[target]) {
+                autoloadData[target].forEach(cmd => delete os.commands[cmd]);
+                delete autoloadData[target];
+                await vfs.write('/etc/autoload.json', JSON.stringify(autoloadData), 'file');
+                term.println(`Unloaded module: ${target}`);
+            } else {
+                term.println(`unload: module not found`);
+            }
+        });
+
+        /* ---- NEW USER COMMANDS ---- */
+        
+        registerCommand('logout', async () => {
+            os.env.user = null;
+            os.env.role = null;
+            os.env.cwd = '/';
+            os.mode = 'login_user';
+            term.clear();
+            term.println("AntiOS v1.2");
+        });
+
+        registerCommand('user', async (args) => {
+            const target = Array.isArray(args) ? args : args;
+            if (!target) return term.println("user: missing username");
+            const users = await userManager.getUsers();
+            if (!users[target]) return term.println(`user: unknown user '${target}'`);
+            
+            os.temp.suUser = target;
+            os.mode = 'su_pass';
+        });
+
+        registerCommand('newuser', async (args) => {
+            if (os.env.role !== 'admin') return term.println("newuser: permission denied (admin only)");
+            const target = Array.isArray(args) ? args : args;
+            if (!target) return term.println("newuser: missing username");
+            
+            const users = await userManager.getUsers();
+            if (users[target]) return term.println(`newuser: user '${target}' already exists`);
+            
+            os.temp.newUser = target;
+            os.mode = 'newuser_pass';
+        });
+
+        registerCommand('wipeall', async (args) => {
+            if (os.env.role !== 'admin') return term.println("wipeall: permission denied (admin only)");
+            
+            let target = '';
+            if (Array.isArray(args) && args.length > 0) target = String(args).trim().toLowerCase();
+            else if (typeof args === 'string') target = args.trim().toLowerCase();
+            
+            if (target !== 'confirm') {
+                term.println("WARNING: This will destroy all system data and user accounts.");
+                term.println("To proceed, type: wipeall confirm");
+                return; 
+            }
+
+            term.println("Wiping virtual disk...");
+            try {
+                const db = await dbPromise;
+                db.close();
+                const req = indexedDB.deleteDatabase(DB_NAME);
+                req.onsuccess = () => {
+                    term.println("System wiped successfully. Rebooting...");
+                    setTimeout(() => location.reload(), 1000);
+                };
+                req.onerror = () => term.println("wipeall: Failed to delete database.");
+                req.onblocked = () => term.println("wipeall: Database in use by another tab.");
+            } catch (err) {
+                term.println(`wipeall error: ${err.message}`);
+            }
+        });
+
+        registerCommand('curl', async (args) => {
+            if (!args || args.length === 0) return term.println("wget: missing URL");
+
+            // Extract exactly what we need
+            const rawUrl = args[0]; // The first word
+            const rawFile = args[1]; // The second word (if it exists)
+
+            // Ensure rawUrl is a string and doesn't contain a comma
+            let urlInput = String(rawUrl).trim();
+            
+            if (!urlInput.toLowerCase().startsWith('http')) {
+                urlInput = 'https://' + urlInput;
+            }
+
+            // Determine filename
+            let filename = rawFile ? String(rawFile).trim() : 'index.html';
+            if (args.length > 1 && args) {
+                filename = String(args[1]).trim();
+            } else {
+                try {
+                    const urlObj = new URL(urlInput);
+                    filename = urlObj.pathname.split('/').pop() || 'index.html';
+                } catch(e) {
+                    filename = 'index.html';
+                }
+            }
+
+            const targetPath = resolvePath(os.env.cwd, filename);
+            
+            term.println(`Target URL: ${urlInput}`);
+            term.println(`Target File: ${targetPath}`);
+
+            try {
+                const response = await fetch(urlInput, {
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+                    }
+                });
+
+                if (!response.ok) {
+                    term.println(`HTTP Error: ${response.status}`);
+                    return;
+                }
+
+                const data = await response.text();
+                await vfs.write(targetPath, data, 'file');
+                
+                term.println(`Success: ${data.length} bytes saved.`);
+
+            } catch (err) {
+                term.println(`curl: failed - ${err.message}`);
+                console.error("Fetch failed for URL:", urlInput);
+            }
+        });
+
+        registerCommand('weather', async (args) => {
+            const city = (args[0] && args[0].length > 0) ? args[0] : 'London'; // [bracket with value 0 here]
+            term.println(`Accessing Geodata for: ${city}...`);
+
+            try {
+                // Step 1: Geocoding
+                const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`;
+                const geoRes = await fetch(geoUrl);
+                const geoData = await geoRes.json();
+
+                if (!geoData.results || geoData.results.length === 0) {
+                    return term.println(`Error: City '${city}' not found.`);
+                }
+
+                const location = geoData.results[0]; // [bracket with value 0 here]
+                const lat = location.latitude;
+                const lon = location.longitude;
+
+                // Step 2: Weather Forecast
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`;
+                const weatherRes = await fetch(weatherUrl);
+                const weatherData = await weatherRes.json();
+                
+                if (weatherData && weatherData.current_weather) {
+                    const curr = weatherData.current_weather;
+                    
+                    // --- Live Time Calculation ---
+                    const now = new Date();
+                    const offset = weatherData.utc_offset_seconds || 0;
+                    const localDate = new Date(now.getTime() + (offset * 1000) + (now.getTimezoneOffset() * 60000));
+                    const hours = localDate.getHours();
+                    const mins = localDate.getMinutes().toString().padStart(2, '0');
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    const hours12 = hours % 12 || 12;
+
+                    // --- Wind Direction Logic ---
+                    const degrees = curr.winddirection;
+                    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+                    const dirName = directions[Math.round(degrees / 45) % 8]; // [bracket with value 8 here]
+
+                    // --- Final Output ---
+                    term.println(`\n--- ${location.name}, ${location.country || ''} ---`);
+                    term.println(`Local Time: ${hours12}:${mins} ${ampm} (${hours}:${mins})`);
+                    term.println(`Temperature: ${curr.temperature}°C`);
+                    term.println(`Wind Speed:  ${curr.windspeed} km/h`);
+                    term.println(`Wind Dir:    ${degrees}° (${dirName})`);
+                    term.println(`Updated at:  ${curr.time.split('T')[1]}`); // [bracket with value 1 here]
+                    term.println(`----------------------------`);
+                } else {
+                    term.println("Error: Weather data not found.");
+                }
+
+            } catch (err) {
+                term.println(`weather: network failure (${err.message})`);
+            }
+        });
+
+        registerCommand('whois-ip', async (args) => {
+            const target = (args && args.length > 0) ? args[0] : ''; 
+            
+            term.println("Querying IP information...");
+
+            try {
+                const response = await fetch(`https://ipapi.co/${target}/json/`);
+                
+                if (!response.ok) {
+                    return term.println(`Error: Server returned status ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    return term.println(`Error: ${data.reason}`);
+                }
+
+                term.println(`\n--- IP Information: ${data.ip} ---`);
+                term.println(`Network:    ${data.network || 'Unknown'}`);
+                term.println(`ISP:        ${data.org || 'Unknown'}`);
+                term.println(`Location:   ${data.city}, ${data.region}, ${data.country_name}`);
+                term.println(`Postal:     ${data.postal || 'N/A'}`);
+                term.println(`Timezone:   ${data.timezone}`);
+                term.println(`Coordinates: ${data.latitude}, ${data.longitude}`);
+                term.println(`---------------------------------`);
+
+            } catch (err) {
+                term.println(`whois-ip: connection failed (${err.message})`);
+            }
+        });
+
+        registerCommand('view', async (args) => {
+            if (!args || args.length === 0) return term.println("view: missing file or folder");
+
+            let path = resolvePath(os.env.cwd, args[0]);
+            let file = await vfs.read(path);
+
+            // If it's a directory, try to find index.html
+            if (file && file.type === 'dir') {
+                path = resolvePath(path, 'index.html');
+                file = await vfs.read(path);
+            }
+
+            if (!file || file.type !== 'file') {
+                return term.println(`view: ${args[0]}: No such file or index.html`);
+            }
+
+            // Get UI elements
+            const viewLayer = document.getElementById('view-layer');
+            const termLayer = document.getElementById('terminal-layer');
+            const iframe = document.getElementById('view-iframe');
+            const fileNameEl = document.getElementById('view-filename');
+
+            // Set state and content
+            os.mode = 'view';
+            fileNameEl.textContent = path;
+            iframe.srcdoc = file.content;
+
+            // Toggle visibility
+            termLayer.style.display = 'none';
+            viewLayer.style.display = 'flex';
+        });
+
+        registerCommand('embed', async (args) => {
+            if (!args || args.length === 0) return term.println("embed: missing URL");
+
+            let url = args[0];
+
+            // Protocol check similar to your uploaded file
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                url = "https://" + url;
+            }
+
+            const embedLayer = document.getElementById('embed-layer');
+            const termLayer = document.getElementById('terminal-layer');
+            const embedFrame = document.getElementById('embed-frame');
+            const urlDisplay = document.getElementById('embed-url-text');
+
+            term.println(`Opening live embed for ${url}...`);
+            
+            // Set state and content
+            os.mode = 'embed';
+            urlDisplay.textContent = url;
+            embedFrame.src = url; // Set the source directly to the external URL
+
+            // Toggle UI
+            termLayer.style.display = 'none';
+            embedLayer.style.display = 'flex';
+        });
+
+        registerCommand('proxy', async (args) => {
+            if (!args || args.length === 0) return term.println("proxy: missing URL");
+
+            let url = args[0];
+            if (!url.startsWith("http")) url = "https://" + url;
+
+            const myProxy = "https://antios-worker.1962fenderjaguar.workers.dev";
+            const proxiedUrl = `${myProxy}?url=${encodeURIComponent(url)}`;
+
+            const embedLayer = document.getElementById('embed-layer');
+            const termLayer = document.getElementById('terminal-layer');
+            const embedFrame = document.getElementById('embed-frame');
+            const urlDisplay = document.getElementById('embed-url-text');
+
+            term.println(`Rewriting links for ${url}...`);
+            
+            os.mode = 'embed';
+            urlDisplay.textContent = url + " (Proxied & Rewritten)";
+            embedFrame.src = proxiedUrl; 
+
+            termLayer.style.display = 'none';
+            embedLayer.style.display = 'flex';
+        });
+
+
+        /**
+         * 6. Input Handling & State Machine
+         */
+        document.addEventListener('keydown', async (e) => {
+            if (os.mode === 'embed') {
+                if (e.key === 'Escape' || (e.ctrlKey && e.key === 'q')) {
+                    e.preventDefault();
+                    os.mode = 'terminal';
+                    document.getElementById('embed-layer').style.display = 'none';
+                    document.getElementById('terminal-layer').style.display = 'flex';
+                    // Reset src to stop any background audio/video from the site
+                    document.getElementById('embed-frame').src = ""; 
+                    term.updateInputDisplay();
+                }
+                return;
+            }
+            
+            if (os.mode === 'view') {
+                if (e.key === 'Escape' || (e.ctrlKey && e.key === 'q')) {
+                    e.preventDefault();
+                    os.mode = 'terminal';
+                    document.getElementById('view-layer').style.display = 'none';
+                    document.getElementById('terminal-layer').style.display = 'flex';
+                    term.updateInputDisplay();
+                }
+                return;
+            }
+            
+            if (os.mode === 'editor') {
+                if (e.ctrlKey && e.key === 's') { e.preventDefault(); editor.save(); } 
+                else if ((e.ctrlKey && e.key === 'q') || e.key === 'Escape') { e.preventDefault(); editor.close(); }
+                return;
+            }
+
+            // Terminal & Login Modes
+            // Terminal & Login Modes
+            if (e.ctrlKey || e.metaKey || e.altKey) {
+                
+                // --- NEW: Handle Paste (Ctrl+V) ---
+                if (e.key === 'v') {
+                    e.preventDefault();
+                    navigator.clipboard.readText().then(text => {
+                        // Insert pasted text exactly where the cursor is
+                        term.buffer = term.buffer.substring(0, term.cursorPos) + text + term.buffer.substring(term.cursorPos);
+                        term.cursorPos += text.length;
+                        term.updateInputDisplay();
+                    }).catch(err => {
+                        term.println("\n[Paste failed: Browser denied clipboard access]");
+                        term.updateInputDisplay();
+                    });
+                    return;
+                }
+
+                // --- FIXED: Handle Copy / Cancel (Ctrl+C) ---
+                if (e.key === 'c') {
+                    // If the user has highlighted text with their mouse, let the system copy it normally!
+                    if (window.getSelection().toString().length > 0) return; 
+
+                    // Otherwise, act like a normal terminal cancel command (^C)
+                    e.preventDefault();
+                    term.buffer = ''; term.cursorPos = 0;
+                    if (['su_pass', 'newuser_pass'].includes(os.mode)) {
+                        os.mode = 'terminal';
+                        term.println("\n^C");
+                    } else if (os.mode === 'terminal') {
+                        term.println(term.promptEl.textContent + "^C");
+                    }
+                    term.updateInputDisplay();
+                    return;
+                }
+                
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                const input = term.buffer;
+                term.buffer = '';
+                term.cursorPos = 0;
+
+                // Route input based on the current state
+                if (os.mode === 'setup_user') {
+                    if (!input.trim()) return;
+                    os.temp.setupUser = input.trim();
+                    os.mode = 'setup_pass';
+                    term.println("Create admin username: " + os.temp.setupUser);
+                } else if (os.mode === 'setup_pass') {
+                    if (!input.trim()) return;
+                    term.println("Create admin password: ***");
+                    await userManager.saveUsers({ [os.temp.setupUser]: { password: input.trim(), role: 'admin' } });
+                    await vfs.write(`/home/${os.temp.setupUser}`, null, 'dir');
+                    
+                    os.env.user = os.temp.setupUser;
+                    os.env.role = 'admin';
+                    os.env.cwd = `/home/${os.temp.setupUser}`;
+                    os.mode = 'terminal';
+                    term.clear();
+                    term.println(`Welcome to AntiOS v1.2, ${os.env.user}!`);
+                    term.println("Type 'help' to see new commands.");
+                } else if (os.mode === 'login_user') {
+                    if (!input.trim()) return;
+                    os.temp.loginUser = input.trim();
+                    os.mode = 'login_pass';
+                    term.println("login: " + os.temp.loginUser);
+                } else if (os.mode === 'login_pass') {
+                    term.println("password: ***");
+                    const users = await userManager.getUsers();
+                    if (users && users[os.temp.loginUser] && users[os.temp.loginUser].password === input.trim()) {
+                        os.env.user = os.temp.loginUser;
+                        os.env.role = users[os.temp.loginUser].role;
+                        os.env.cwd = `/home/${os.temp.loginUser}`;
+                        os.mode = 'terminal';
+                        term.clear();
+                        term.println(`Welcome back, ${os.env.user}!`);
+                    } else {
+                        term.println("Login incorrect.\n");
+                        os.mode = 'login_user';
+                    }
+                } else if (os.mode === 'su_pass') {
+                    term.println("password: ***");
+                    const users = await userManager.getUsers();
+                    if (users && users[os.temp.suUser] && users[os.temp.suUser].password === input.trim()) {
+                        os.env.user = os.temp.suUser;
+                        os.env.role = users[os.temp.suUser].role;
+                        os.env.cwd = `/home/${os.temp.suUser}`;
+                        term.println(`Switched to user '${os.env.user}'`);
+                    } else {
+                        term.println("Authentication failure.");
+                    }
+                    os.mode = 'terminal';
+                } else if (os.mode === 'newuser_pass') {
+                    if (!input.trim()) return;
+                    term.println("password: ***");
+                    const users = await userManager.getUsers();
+                    users[os.temp.newUser] = { password: input.trim(), role: 'user' };
+                    await userManager.saveUsers(users);
+                    if (!(await vfs.exists(`/home/${os.temp.newUser}`))) {
+                        await vfs.write(`/home/${os.temp.newUser}`, null, 'dir');
+                    }
+                    term.println(`User '${os.temp.newUser}' created successfully.`);
+                    os.mode = 'terminal';
+                } else {
+                    // Standard terminal execution
+                    await term.execute(input);
+                }
+                
+                term.updateInputDisplay();
+                return;
+            }
+
+            if (e.key === 'Backspace') {
+                if (term.cursorPos > 0) {
+                    term.buffer = term.buffer.substring(0, term.cursorPos - 1) + term.buffer.substring(term.cursorPos);
+                    term.cursorPos--;
+                }
+            } else if (e.key === 'Delete') {
+                if (term.cursorPos < term.buffer.length) {
+                    term.buffer = term.buffer.substring(0, term.cursorPos) + term.buffer.substring(term.cursorPos + 1);
+                }
+            } else if (e.key === 'ArrowLeft') { term.cursorPos = Math.max(0, term.cursorPos - 1); } 
+            else if (e.key === 'ArrowRight') { term.cursorPos = Math.min(term.buffer.length, term.cursorPos + 1); } 
+            else if (e.key === 'ArrowUp' && os.mode === 'terminal') {
+                if (term.historyIdx > 0) {
+                    term.historyIdx--;
+                    term.buffer = term.history[term.historyIdx];
+                    term.cursorPos = term.buffer.length;
+                }
+            } else if (e.key === 'ArrowDown' && os.mode === 'terminal') {
+                if (term.historyIdx < term.history.length - 1) {
+                    term.historyIdx++;
+                    term.buffer = term.history[term.historyIdx];
+                } else {
+                    term.historyIdx = term.history.length;
+                    term.buffer = '';
+                }
+                term.cursorPos = term.buffer.length;
+            } else if (e.key.length === 1) {
+                term.buffer = term.buffer.substring(0, term.cursorPos) + e.key + term.buffer.substring(term.cursorPos);
+                term.cursorPos++;
+            }
+
+            if (e.key === 'Tab' || e.key === 'Backspace' || e.key === ' ') e.preventDefault(); 
+            term.updateInputDisplay();
+        });
+
+        // Function to regain focus for the OS
+        const refocusOS = () => {
+            window.focus();
+        };
+
+        // Monitor when the window loses focus to an iframe
+        window.onblur = () => {
+            if (os.mode === 'view' || os.mode === 'embed') {
+                // If the user clicked the frame, we still want to listen for keys
+                // We set a small timeout to "watch" the frame
+                setTimeout(() => {
+                    if (document.activeElement.tagName === 'IFRAME' || document.activeElement.tagName === 'EMBED') {
+                        term.println("\[System\] Frame captured focus. Click the header to re-enable ESC.");
+                    }
+                }, 100);
+            }
+        };
+
+        // IMPORTANT: Add this 'click' listener to your headers
+        document.getElementById('view-header').addEventListener('click', refocusOS);
+        document.getElementById('embed-header').addEventListener('click', refocusOS);
+
+
+        /**
+         * 7. System Boot
+         */
+        async function boot() {
+            term.println("Initializing AntiOS v1.2...");
+            
+            // Format disk on very first boot
+            if (!(await vfs.exists('/'))) {
+                term.println("Formatting virtual disk...");
+                await vfs.write('/', null, 'dir');
+                await vfs.write('/home', null, 'dir');
+                await vfs.write('/etc', null, 'dir'); // Protected system config folder
+                await vfs.write('/bin', null, 'dir');
+            }
+
+            term.clear();
+            
+            // Check for user profiles
+            const users = await userManager.getUsers();
+            
+            if (!users) {
+                // No users exist: Trigger First Boot Setup
+                term.println("Welcome to AntiOS First Boot Setup.");
+                term.println("To begin, you must create an administrator account.\n");
+                os.mode = 'setup_user';
+            } else {
+                // Users exist: Trigger Standard Login
+                term.println("AntiOS v1.2");
+                os.mode = 'login_user';
+                
+                // Auto-load background modules quietly 
+                const autoloadFile = await vfs.read('/etc/autoload.json');
+                if (autoloadFile) {
+                    const autoloadData = JSON.parse(autoloadFile.content);
+                    for (const path of Object.keys(autoloadData)) {
+                        const file = await vfs.read(path);
+                        if (file && file.type === 'file') {
+                            try {
+                                const moduleCode = new Function('term', 'vfs', 'os', 'registerCommand', file.content);
+                                await moduleCode(term, vfs, os, registerCommand);
+                            } catch (e) { console.error(`Failed to load ${path}`); }
+                        }
+                    }
+                }
+            }
+            term.updateInputDisplay();
+        }
+
+        // Wait for DB, then boot
+        dbPromise.then(boot).catch(err => {
+            term.println("CRITICAL FAILURE: Could not initialize IndexedDB.");
+            console.error(err);
+        });
+    </script>
+</body>
+</html>
+        <script>
+          try {
+            
+          } catch (err) {
+            console.error('Runtime Error:', err);
+            document.body.innerHTML += '<div style="color:red; background:#ffe6e6; padding:10px; margin-top:20px; border-radius:4px; border:1px solid red;"><strong>Runtime Error:</strong> ' + err.message + '</div>';
+          }
+        </script>
+      </body>
+    </html>
+  
