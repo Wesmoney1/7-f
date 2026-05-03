@@ -12,6 +12,11 @@ p {
   font-family: roboto-300, sans-serif;
 }
 
+p {
+  font-size: 16 px;
+  font-family: roboto-600, sans-serif;
+}
+
 h1 {
   font-family: robot-600, sans-serif;
 }
