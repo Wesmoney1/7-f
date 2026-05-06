@@ -9,19 +9,28 @@
 
 p {
   font-size: 16 px;
-  font-family: roboto-300, sans-serif;
+  font-family: "Roboto", sans-serif;
+  font-weight: 300;
 }
 
 b {
   font-size: 16 px;
-  font-family: roboto-600, sans-serif;
+  font-family: "Roboto", sans-serif;
+  font-weight: 600;
 }
 
 h1 {
-  font-family: robot-600, sans-serif;
+  font-family: "Roboto", sans-serif;
+  font-weight: 300;
 }
 
 a {
-  color: '#5794e5';
-  font-family: roboto-300, sans-serif;
+  color: #5794e5;
+  font-family: "Roboto", sans-serif;
+  text-decoration: none;
+  font-weight: 300;
+}
+
+a:hover {
+  text-decoration: underline;
 }
