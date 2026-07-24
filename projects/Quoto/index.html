@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>Quoto</title>
+
+        <!-- Playfair Display -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,759;1,759&display=swap" rel="stylesheet">
+
+        <!-- Import master css sheet -->
+        <link rel="stylesheet" href="main.css">
+    </head>
+    <body>
+        <audio src="moosiic.mp3" id="moosiic" autoplay loop></audio>
+        <div class="bg-image" id="bg-image"></div>
+        <button class="arial-light generate" id="generate">Generate Quote</button>
+        <br>
+        <textarea class="templateinp arial-light white" id="templates" placeholder="Add your templates here..."></textarea>
+        <h1 class="playfair-bold quote xl" id="quote">Hold on, I'm thinking.</h1>
+        <p class="arial-light subquote med half-op" id="author">Quoto</p>
+        <p class="arial-light small half-op credit white">Quoto - 7-f.net, Wesley. S. 2026</p>
+        <script type="module" src="main.js"></script>
+    </body>
+</html>

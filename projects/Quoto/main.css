@@ -1,0 +1,135 @@
+:root {
+    --bg-image: url("bg1.jpg");
+}
+
+.playfair-bold {
+  font-family: "Playfair Display", serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-style: normal;
+}
+
+.playfair-light {
+  font-family: "Playfair Display", serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.arial-light {
+    font-family: arial;
+    font-optical-sizing: auto;
+    font-weight: 300;
+    font-style: normal;
+}
+
+.half-op {
+    opacity: 0.6;
+}
+
+.quote {
+    color: white;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-top: 23vh;
+    padding-left: 10vw;
+    padding-right: 10vw;
+}
+
+.subquote {
+    color: white;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-left: 10vw;
+    padding-right: 10vw;
+}
+
+.xxl {
+    font-size: 50px;
+}
+
+.xl {
+    font-size: 41px;
+}
+
+.med {
+    font-size: 24px;
+}
+
+.medsmall {
+    font-size: 19px;
+}
+
+.small {
+    font-size: 13px;
+}
+
+.generate {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: white;
+    box-shadow: 2px 2px 15px black;
+    padding: 5px 10px;
+    margin: 10px 10px;
+    border-color: rgba(15, 15, 15, 0.6);
+}
+
+.templateinp {
+    margin: 10px;
+    opacity: 0.5;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 5px 5px 10px black;
+    border-color: rgba(15, 15, 15, 0.8);
+    padding: 5px;
+}
+
+.white {
+    color: white;
+}
+
+.credit {
+    bottom: 0;
+    position: fixed;
+    width: 100%;
+    margin: 5px;
+}
+
+body {
+    position: relative;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+}
+
+body::before {
+    z-index: -1;
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    /* Add the blur effect */
+    filter: blur(7px);
+    -webkit-filter: blur(7px);
+
+    /* Full height */
+    height: 100vh;
+
+    /* Center and scale the image nicely */
+    transform: scale(1.05);
+
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.1)),
+        var(--bg-image);
+
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}

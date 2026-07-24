@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>Quoto Guide</title>
+        <link rel="stylesheet" href="../../styles/main.css">
+    </head>
+    <body>
+        <h1>Quoto Guide</h1>
+        <b>Please read the guide through. It isn't long.<b>
+        <p><b>Quoto</b> is really quite simple, and just uses a global list of <b>templates</b>, which contains all of the ways it could make a quote.<p>
+        <p>To make a quote, template, select the textarea in the upper left corner, and type your <b>templates</b>, separated by newlines</p>
+        <p>A template can be made like this: </p>
+        <p>A template is just a sentence, except, you replace the parts where you want there to be random word with its category inside of brackets:</p>
+        <p>Let's say you want to generate a random noun. You can do so by pulling from the <b>[nouns]</b> list.<p>
+        <p>The code pulls from a js file containing all of the categories and starter templates. <i>old_words.js</i> (the one used right now) contains these categories:</p>
+        <p>[nouns], [nounsplural], [verbscurrent], [verbspast], [verbs], [adjectives], [adverbs], [particles], [uncertainties], [contrasts], [pronounsub], [pronounsubis], [questionpronounsub], [pronounobj], and [prepositions].</p>
+        <p>I encourage you to experiment with these, and look through the code if you know js.</p>
+        <p>You can change the words file used by just changing the import statement in main.js.</p>
+        <p>Currently, the code uses <i>old_words.js</i>, which I find to be a little more coherent, although there are less possibilities and less randomness. <i>words.js</i> has lists of thousands of words, and is about 7000 lines long, but isn't always coherent.</p>
+        <p>Here is an example of of a template:</p>
+        <b>The [nouns] is [adjectives].</b>
+        <p>Random words must start with a left bracket following a space. doing something like the[noun] would not work. There must be a space. Following characters will work, though, for example [noun]...</p>
+        <p>Finally, please allow <b>autoplay</b>.</p>
+    </body>
+</html>
