@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Very Small Html Runner</title>
+    </head>
+    <body>
+    <h2>A Very Small HTML Runner</h2>
+        <textarea id="c" placeholder="Put your code here..."></textarea>
+       <br>
+    <button onclick="onRun()">Open</button>
+    <script>
+        function onRun() {
+            const u = document.getElementById("c");
+            const t = window.open('about:blank', '_blank');
+            if (t) {
+                t.document.open();
+                t.document.write(u);
+                t.document.close();
+            } else {
+                alert("Please allow popups (pretty please)");
+            }
+        }
+    </script>
+    </body>
+</html>
