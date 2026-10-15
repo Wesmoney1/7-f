@@ -11,7 +11,7 @@
     <button onclick="onRun()">Open</button>
     <script>
         function onRun() {
-            const u = document.getElementById("c");
+            const u = document.getElementById("c").value;
             const t = window.open('about:blank', '_blank');
             if (t) {
                 t.document.open();
